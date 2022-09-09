@@ -10,6 +10,7 @@
                  [ring-cors/ring-cors "0.1.13"]
                  [ring "1.9.5"]
                  [ring/ring-json "0.5.1"]
+                 [cheshire "5.11.0"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [java-jdbc/dsl "0.1.3"]]
 

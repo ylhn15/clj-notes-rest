@@ -1,5 +1,7 @@
 (ns clojure-rest.handler
   (:require
+   [cheshire.core :refer [generate-string]]
+   [clojure-rest.helper :refer [get-current-iso-8601-date]]
    [clojure.java.jdbc :as jdbc]
    [compojure.core :refer [defroutes GET POST OPTIONS]]
    [compojure.handler :as handler]
@@ -9,19 +11,12 @@
    [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
    [ring.middleware.json :refer [wrap-json-response wrap-json-body wrap-json-params]]
    [ring.middleware.keyword-params :refer [wrap-keyword-params]]
-   [ring.middleware.params :refer [wrap-params]])
-  (:import
-   (java.util Calendar)))
+   [ring.middleware.params :refer [wrap-params]]))
 
 (def db
   {:classname "org.sqlite.JDBC"
    :subprotocol "sqlite"
    :subname "db/data.db"})
-
-(defn get-current-iso-8601-date
-  "Returns current ISO 8601 compliant date."
-  []
-  (.format (java.text.SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ssZ") (.getTime (Calendar/getInstance))))
 
 (defn get-all-notes
   "execute query and return lazy sequence"
@@ -37,10 +32,13 @@
                  :id (java.util.UUID/randomUUID)
                  :createdAt (get-current-iso-8601-date)}))
 
-(defn get-note
-  [title]
-  (jdbc/query db ["select * from notes where title = ?" title]))
+(defn get-note-by-id
+  [id]
+  (jdbc/query db ["select * from notes where id = ?" id]))
 
+(defn delete-note-by-id
+  [id]
+  (jdbc/execute! db ["delete from notes where id = ?" id]))
 (def cors-headers
   "Generic CORS headers"
   {"Access-Control-Allow-Origin" "*"
@@ -70,14 +68,15 @@
   (GET "/ping" [] "pong")
   (GET "/notes" [] (get-all-notes))
   (POST "/note" [] insert-note-into-db)
-  (GET "/note/:title" [title] (get-note title))
+  (GET "/note/:id" [id] (get-note-by-id id))
+  (GET "/delete-note/:id" [id] (delete-note-by-id id))
   (route/not-found "Not Found"))
 
 (def app
   (-> (handler/api app-routes)
       wrap-params
       wrap-json-body
-      wrap-json-response
+      (wrap-json-response {:pretty true})
       wrap-json-params
       wrap-keyword-params
       (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
